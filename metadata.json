@@ -1,0 +1,8 @@
+{
+  "name": "Foglio Presenze Mensile",
+  "description": "Applicazione per il tracciamento mensile degli orari di lavoro con calcolo automatico.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
