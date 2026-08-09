@@ -283,38 +283,36 @@ export default function App() {
       const monthNameStr = monthNames[parseInt(month, 10) - 1];
 
       const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.top = '-9999px';
+      tempDiv.style.position = 'fixed';
+      tempDiv.style.top = '0px';
       tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '800px';
+      tempDiv.style.width = '794px';
       tempDiv.style.backgroundColor = '#ffffff';
-      tempDiv.style.padding = '20px';
-      tempDiv.style.fontFamily = 'Arial, sans-serif';
       tempDiv.style.color = '#000000';
       
       let html = `
-        <div style="background: #ffffff; padding: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000000; padding-bottom: 20px; margin-bottom: 20px;">
+        <div style="background: #ffffff; padding: 15px; font-family: Arial, sans-serif; color: #000000;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000000; padding-bottom: 15px; margin-bottom: 15px;">
             <div style="display: flex; align-items: center; gap: 15px;">
               <div>
-                <h1 style="font-size: 24px; font-weight: bold; color: #000000; margin: 0 0 4px 0;">Foglio Presenze</h1>
-                ${userName ? `<div style="font-size: 16px; color: #000000;">Dipendente: <strong>${userName}</strong></div>` : ''}
+                <h1 style="font-size: 20px; font-weight: bold; color: #000000; margin: 0 0 4px 0;">Foglio Presenze</h1>
+                ${userName ? `<div style="font-size: 14px; color: #000000;">Dipendente: <strong>${userName}</strong></div>` : ''}
               </div>
             </div>
-            <div style="font-size: 16px; font-weight: bold; color: #000000;">
+            <div style="font-size: 14px; font-weight: bold; color: #000000;">
               ${monthNameStr} ${year}
             </div>
           </div>
 
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; border: 1px solid #000000;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; border: 1px solid #000000;">
             <thead>
-              <tr style="border-bottom: 2px solid #000000;">
-                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000; width: 100px;">Giorno</th>
-                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Mattino</th>
-                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Mattino</th>
-                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Pomeriggio</th>
-                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Pomeriggio</th>
-                <th style="padding: 8px; font-weight: bold; text-align: right;">Totale</th>
+              <tr style="border-bottom: 2px solid #000000; page-break-inside: avoid;">
+                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000; width: 80px;">Giorno</th>
+                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Mattino</th>
+                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Mattino</th>
+                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Pomeriggio</th>
+                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Pomeriggio</th>
+                <th style="padding: 4px; font-weight: bold; text-align: right;">Totale</th>
               </tr>
             </thead>
             <tbody>
@@ -330,16 +328,16 @@ export default function App() {
         const dayName = shortDays[currentDayIndex];
         
         html += `
-          <tr style="border-bottom: 1px solid #000000;">
-            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">
-              <strong style="display: inline-block; width: 20px; text-align: right; margin-right: 4px;">${entry.day}</strong>
-              <span style="font-size: 12px;">${dayName}</span>
+          <tr style="border-bottom: 1px solid #000000; page-break-inside: avoid;">
+            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">
+              <strong style="display: inline-block; width: 16px; text-align: right; margin-right: 4px;">${entry.day}</strong>
+              <span style="font-size: 11px;">${dayName}</span>
             </td>
-            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.amIn || ''}</td>
-            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.amOut || ''}</td>
-            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.pmIn || ''}</td>
-            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.pmOut || ''}</td>
-            <td style="padding: 8px; text-align: right; font-weight: bold;">${formatMinutes(dayTotal)}</td>
+            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.amIn || ''}</td>
+            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.amOut || ''}</td>
+            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.pmIn || ''}</td>
+            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.pmOut || ''}</td>
+            <td style="padding: 4px; text-align: right; font-weight: bold;">${formatMinutes(dayTotal)}</td>
           </tr>
         `;
       });
@@ -347,9 +345,9 @@ export default function App() {
       html += `
             </tbody>
           </table>
-          <div style="margin-top: 20px; text-align: right;">
-            <span style="font-size: 16px; margin-right: 12px;">Totale Mensile Lavorato:</span>
-            <span style="font-size: 20px; font-weight: bold;">${formatMinutes(totalMonthMinutes)}</span>
+          <div style="margin-top: 15px; text-align: right;">
+            <span style="font-size: 14px; margin-right: 10px;">Totale Mensile Lavorato:</span>
+            <span style="font-size: 18px; font-weight: bold;">${formatMinutes(totalMonthMinutes)}</span>
           </div>
         </div>
       `;
@@ -361,16 +359,27 @@ export default function App() {
         margin:       10,
         filename:     `Foglio_Presenze_${currentMonth}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
+        html2canvas:  { scale: 2, scrollY: 0, windowWidth: 794 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      // @ts-ignore
-      if (window.html2pdf) {
-        // @ts-ignore
-        await window.html2pdf().set(opt).from(tempDiv).save();
+      // Caricamento sicuro di html2pdf
+      let html2pdfInstance = (window as any).html2pdf;
+      if (!html2pdfInstance) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Impossibile caricare html2pdf.js'));
+          document.head.appendChild(script);
+        });
+        html2pdfInstance = (window as any).html2pdf;
+      }
+
+      if (html2pdfInstance) {
+        await html2pdfInstance().set(opt).from(tempDiv).save();
       } else {
-        throw new Error("html2pdf library not loaded.");
+        throw new Error("Libreria html2pdf non disponibile.");
       }
       
       document.body.removeChild(tempDiv);
