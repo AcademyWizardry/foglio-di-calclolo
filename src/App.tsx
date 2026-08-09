@@ -266,24 +266,77 @@ export default function App() {
   };
 
   const handleDownloadPDF = async () => {
-    const element = document.getElementById('timesheet-container');
-    if (!element) return;
-    
     setIsGeneratingPDF(true);
     
     try {
+      const [year, month] = currentMonth.split('-');
+      const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+      const monthNameStr = monthNames[parseInt(month, 10) - 1];
+
+      let html = `
+        <div style="font-family: Arial, sans-serif; padding: 10px; color: #333;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="font-size: 22px; margin: 0 0 5px 0;">Foglio Presenze - ${monthNameStr} ${year}</h1>
+            ${userName ? `<h2 style="font-size: 16px; margin: 0; font-weight: normal;">Dipendente: <strong>${userName}</strong></h2>` : ''}
+          </div>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left;">Giorno</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">Mattina IN</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">Mattina OUT</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">Pomeriggio IN</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">Pomeriggio OUT</th>
+                <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">Totale</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      let totalMonthMinutes = 0;
+
+      entries.forEach(entry => {
+        const dayTotal = calculateDayMinutes(entry);
+        totalMonthMinutes += dayTotal;
+        
+        const dateObj = new Date(parseInt(year, 10), parseInt(month, 10) - 1, entry.day);
+        const dayName = shortDays[dateObj.getDay()];
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        const rowStyle = isWeekend ? 'background-color: #f9fafb;' : '';
+
+        html += `
+          <tr style="${rowStyle}">
+            <td style="border: 1px solid #d1d5db; padding: 4px 6px;"><strong>${entry.day}</strong> <span style="color: #6b7280; font-size: 11px;">${dayName}</span></td>
+            <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: center;">${entry.amIn || ''}</td>
+            <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: center;">${entry.amOut || ''}</td>
+            <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: center;">${entry.pmIn || ''}</td>
+            <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: center;">${entry.pmOut || ''}</td>
+            <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right; font-weight: bold;">${formatMinutes(dayTotal)}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+          <div style="text-align: right; font-size: 16px;">
+            Totale Mensile Lavorato: <strong style="color: #2563eb;">${formatMinutes(totalMonthMinutes)}</strong>
+          </div>
+        </div>
+      `;
+      
       const opt = {
-        margin:       [10, 10, 10, 10],
+        margin:       10,
         filename:     `Foglio_Presenze_${currentMonth}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, backgroundColor: '#f8fafc' },
+        html2canvas:  { scale: 2 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
       // @ts-ignore
       if (window.html2pdf) {
         // @ts-ignore
-        await window.html2pdf().set(opt).from(element).save();
+        await window.html2pdf().set(opt).from(html).save();
       } else {
         throw new Error("html2pdf library not loaded.");
       }
