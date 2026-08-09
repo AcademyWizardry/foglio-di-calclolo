@@ -138,7 +138,6 @@ export default function App() {
   const [firstDay, setFirstDay] = useState<number>(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showEndMonthActions, setShowEndMonthActions] = useState(false);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [userName, setUserName] = useState<string>(() => {
     return localStorage.getItem('timesheet-user-name') || '';
   });
@@ -271,124 +270,49 @@ export default function App() {
     setShowEndMonthActions(false);
   };
 
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById('timesheet-container');
-    if (!element) return;
+  const handleDownloadCSV = () => {
+    const [year, month] = currentMonth.split('-');
+    const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+    const monthNameStr = monthNames[parseInt(month, 10) - 1];
+
+    let csvContent = '\uFEFFsep=;\n';
     
-    setIsGeneratingPDF(true);
-    
-    try {
-      const [year, month] = currentMonth.split('-');
-      const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-      const monthNameStr = monthNames[parseInt(month, 10) - 1];
-
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'fixed';
-      tempDiv.style.top = '0px';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '794px';
-      tempDiv.style.backgroundColor = '#ffffff';
-      tempDiv.style.color = '#000000';
-      
-      let html = `
-        <div style="background: #ffffff; padding: 15px; font-family: Arial, sans-serif; color: #000000;">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000000; padding-bottom: 15px; margin-bottom: 15px;">
-            <div style="display: flex; align-items: center; gap: 15px;">
-              <div>
-                <h1 style="font-size: 20px; font-weight: bold; color: #000000; margin: 0 0 4px 0;">Foglio Presenze</h1>
-                ${userName ? `<div style="font-size: 14px; color: #000000;">Dipendente: <strong>${userName}</strong></div>` : ''}
-              </div>
-            </div>
-            <div style="font-size: 14px; font-weight: bold; color: #000000;">
-              ${monthNameStr} ${year}
-            </div>
-          </div>
-
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; border: 1px solid #000000;">
-            <thead>
-              <tr style="border-bottom: 2px solid #000000; page-break-inside: avoid;">
-                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000; width: 80px;">Giorno</th>
-                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Mattino</th>
-                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Mattino</th>
-                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Pomeriggio</th>
-                <th style="padding: 4px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Pomeriggio</th>
-                <th style="padding: 4px; font-weight: bold; text-align: right;">Totale</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-
-      let totalMonthMinutes = 0;
-
-      entries.forEach(entry => {
-        const dayTotal = calculateDayMinutes(entry);
-        totalMonthMinutes += dayTotal;
-        
-        const currentDayIndex = (firstDay + entry.day - 1) % 7;
-        const dayName = shortDays[currentDayIndex];
-        
-        html += `
-          <tr style="border-bottom: 1px solid #000000; page-break-inside: avoid;">
-            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">
-              <strong style="display: inline-block; width: 16px; text-align: right; margin-right: 4px;">${entry.day}</strong>
-              <span style="font-size: 11px;">${dayName}</span>
-            </td>
-            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.amIn || ''}</td>
-            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.amOut || ''}</td>
-            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.pmIn || ''}</td>
-            <td style="padding: 4px; text-align: center; border-right: 1px solid #000000;">${entry.pmOut || ''}</td>
-            <td style="padding: 4px; text-align: right; font-weight: bold;">${formatMinutes(dayTotal)}</td>
-          </tr>
-        `;
-      });
-
-      html += `
-            </tbody>
-          </table>
-          <div style="margin-top: 15px; text-align: right;">
-            <span style="font-size: 14px; margin-right: 10px;">Totale Mensile Lavorato:</span>
-            <span style="font-size: 18px; font-weight: bold;">${formatMinutes(totalMonthMinutes)}</span>
-          </div>
-        </div>
-      `;
-
-      tempDiv.innerHTML = html;
-      document.body.appendChild(tempDiv);
-      
-      const opt = {
-        margin:       10,
-        filename:     `Foglio_Presenze_${currentMonth}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, scrollY: 0, windowWidth: 794 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      // Caricamento sicuro di html2pdf
-      let html2pdfInstance = (window as any).html2pdf;
-      if (!html2pdfInstance) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('Impossibile caricare html2pdf.js'));
-          document.head.appendChild(script);
-        });
-        html2pdfInstance = (window as any).html2pdf;
-      }
-
-      if (html2pdfInstance) {
-        await html2pdfInstance().set(opt).from(tempDiv).save();
-      } else {
-        throw new Error("Libreria html2pdf non disponibile.");
-      }
-      
-      document.body.removeChild(tempDiv);
-    } catch (e) {
-      console.error("Errore durante la generazione del PDF:", e);
-      alert("Si è verificato un errore durante la generazione del PDF. Assicurati che la libreria sia caricata correttamente.");
-    } finally {
-      setIsGeneratingPDF(false);
+    csvContent += `Foglio Presenze - ${monthNameStr} ${year};;;;;;\n`;
+    if (userName) {
+      csvContent += `Dipendente:;${userName};;;;;\n`;
     }
+    csvContent += ';;;;;;\n';
+    
+    csvContent += 'Giorno;Giorno Settimana;Entrata Mattino;Uscita Mattino;Entrata Pomeriggio;Uscita Pomeriggio;Totale Ore\n';
+
+    let totalMonthMinutes = 0;
+
+    entries.forEach(entry => {
+      const dayTotal = calculateDayMinutes(entry);
+      totalMonthMinutes += dayTotal;
+      
+      const currentDayIndex = (firstDay + entry.day - 1) % 7;
+      const dayName = shortDays[currentDayIndex];
+      
+      const formatTime = (time: string) => time ? time : '';
+      
+      csvContent += `${entry.day};${dayName};${formatTime(entry.amIn)};${formatTime(entry.amOut)};${formatTime(entry.pmIn)};${formatTime(entry.pmOut)};${formatMinutes(dayTotal)}\n`;
+    });
+
+    csvContent += `Totale Mensile Lavorato:;;;;;;${formatMinutes(totalMonthMinutes)}\n`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    const safeUserName = userName ? userName.replace(/\s+/g, '_') : 'Dipendente';
+    link.download = `Foglio_Presenze_${safeUserName}_${currentMonth}.csv`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const totalMonthlyMinutes = entries.reduce((acc, entry) => acc + calculateDayMinutes(entry), 0);
@@ -421,7 +345,6 @@ export default function App() {
               className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Toggle dark mode"
               title="Attiva/Disattiva Modalità Scura"
-              data-html2canvas-ignore="true"
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
@@ -535,7 +458,7 @@ export default function App() {
         </div>
 
         {/* Fine Mese Actions */}
-        <div className="flex justify-end pt-4 pb-8" data-html2canvas-ignore>
+        <div className="flex justify-end pt-4 pb-8">
           {!showEndMonthActions ? (
             <button 
               onClick={() => setShowEndMonthActions(true)}
@@ -546,12 +469,11 @@ export default function App() {
           ) : (
             <div className="flex gap-4 items-center bg-white p-2 rounded-xl shadow-sm border border-slate-200">
               <button 
-                onClick={handleDownloadPDF}
-                disabled={isGeneratingPDF}
-                className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleDownloadCSV}
+                className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium rounded-lg transition-colors flex items-center gap-2"
               >
                 <Download size={18} />
-                {isGeneratingPDF ? "Generazione..." : "Scarica PDF"}
+                Scarica Excel (CSV)
               </button>
               <button 
                 onClick={handleNextMonth}
