@@ -277,13 +277,13 @@ export default function App() {
 
     let csvContent = '\uFEFFsep=;\n';
     
-    csvContent += `Foglio Presenze - ${monthNameStr} ${year};;;;;;\n`;
+    csvContent += `"Foglio Presenze - ${monthNameStr} ${year}";"";"";"";"";"";""\n`;
     if (userName) {
-      csvContent += `Dipendente:;${userName};;;;;\n`;
+      csvContent += `"Dipendente:";"${userName}";"";"";"";"";""\n`;
     }
-    csvContent += ';;;;;;\n';
+    csvContent += `"";"";"";"";"";"";""\n`;
     
-    csvContent += 'Giorno;Giorno Settimana;Entrata Mattino;Uscita Mattino;Entrata Pomeriggio;Uscita Pomeriggio;Totale Ore\n';
+    csvContent += '"Giorno";"Giorno Settimana";"Entrata Mattino";"Uscita Mattino";"Entrata Pomeriggio";"Uscita Pomeriggio";"Totale Ore"\n';
 
     let totalMonthMinutes = 0;
 
@@ -294,12 +294,13 @@ export default function App() {
       const currentDayIndex = (firstDay + entry.day - 1) % 7;
       const dayName = shortDays[currentDayIndex];
       
-      const formatTime = (time: string) => time ? time : '';
+      const formatTime = (time: string) => time ? `"${time}"` : '""';
+      const formattedTotal = dayTotal > 0 ? `"${formatMinutes(dayTotal)}"` : '""';
       
-      csvContent += `${entry.day};${dayName};${formatTime(entry.amIn)};${formatTime(entry.amOut)};${formatTime(entry.pmIn)};${formatTime(entry.pmOut)};${formatMinutes(dayTotal)}\n`;
+      csvContent += `"${entry.day}";"${dayName}";${formatTime(entry.amIn)};${formatTime(entry.amOut)};${formatTime(entry.pmIn)};${formatTime(entry.pmOut)};${formattedTotal}\n`;
     });
 
-    csvContent += `Totale Mensile Lavorato:;;;;;;${formatMinutes(totalMonthMinutes)}\n`;
+    csvContent += `"Totale Mensile Lavorato:";"";"";"";"";"";"${formatMinutes(totalMonthMinutes)}"\n`;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
