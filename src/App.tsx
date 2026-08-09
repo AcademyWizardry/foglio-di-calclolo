@@ -78,10 +78,16 @@ const InputTime = ({ value, onChange, onFocus, isFillTarget }: { value: string, 
       return;
     }
 
+    formatted = formatted.replace(/[.,;]/g, ':');
+
+    if (/^\d{3,4}$/.test(formatted)) {
+      const len = formatted.length;
+      formatted = `${formatted.substring(0, len - 2)}:${formatted.substring(len - 2)}`;
+    }
+
     if (/^\d{1,2}$/.test(formatted)) {
       formatted = `${formatted.padStart(2, '0')}:00`;
     } else {
-      formatted = formatted.replace(/[.,]/g, ':');
       const match = formatted.match(/^(\d{1,2}):(\d{1,2})$/);
       if (match) {
         formatted = `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`;
