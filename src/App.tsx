@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CalendarClock, Download, ArrowRight, X, Sun, Moon } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface DayEntry {
   day: number;
@@ -272,28 +270,26 @@ export default function App() {
     if (!element) return;
     
     setIsGeneratingPDF(true);
+    
     try {
-      // Convert to canvas
-      const canvas = await html2canvas(element, {
-        scale: 2, 
-        backgroundColor: '#f8fafc',
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Foglio_Presenze_${currentMonth}.pdf`);
+      const opt = {
+        margin:       [10, 10, 10, 10],
+        filename:     `Foglio_Presenze_${currentMonth}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, backgroundColor: '#f8fafc' },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      // @ts-ignore
+      if (window.html2pdf) {
+        // @ts-ignore
+        await window.html2pdf().set(opt).from(element).save();
+      } else {
+        throw new Error("html2pdf library not loaded.");
+      }
     } catch (e) {
       console.error("Errore durante la generazione del PDF:", e);
-      alert("Si è verificato un errore durante la generazione del PDF. Se sei nella preview, prova ad aprire l'app in una nuova scheda.");
+      alert("Si è verificato un errore durante la generazione del PDF. Assicurati che la libreria sia caricata correttamente.");
     } finally {
       setIsGeneratingPDF(false);
     }
