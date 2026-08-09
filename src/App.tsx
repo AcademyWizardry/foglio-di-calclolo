@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CalendarClock, Download, ArrowRight, X } from 'lucide-react';
+import { CalendarClock, Download, ArrowRight, X, Sun, Moon } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -138,9 +138,21 @@ export default function App() {
   const [userName, setUserName] = useState<string>(() => {
     return localStorage.getItem('timesheet-user-name') || '';
   });
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('timesheet-dark-mode') === 'true';
+  });
   const [fillModeState, setFillModeState] = useState<{ day: number, field: keyof Omit<DayEntry, 'day'>, keyword: string } | null>(null);
   const fillModeRef = useRef<{ day: number, field: keyof Omit<DayEntry, 'day'>, keyword: string } | null>(null);
   const fieldsOrder: (keyof Omit<DayEntry, 'day'>)[] = ['amIn', 'amOut', 'pmIn', 'pmOut'];
+
+  useEffect(() => {
+    localStorage.setItem('timesheet-dark-mode', String(isDarkMode));
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark-mode');
+    } else {
+      document.documentElement.classList.remove('dark-mode');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     localStorage.setItem('timesheet-user-name', userName);
@@ -311,12 +323,20 @@ export default function App() {
             </div>
           </div>
           
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Toggle dark mode"
+              title="Attiva/Disattiva Modalità Scura"
+            >
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
             <input 
               type="month"
               value={currentMonth}
               onChange={(e) => setCurrentMonth(e.target.value)}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+              className="px-2 sm:px-4 py-2 min-w-[150px] bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
             />
           </div>
         </div>
