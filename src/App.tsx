@@ -278,6 +278,85 @@ export default function App() {
     setIsGeneratingPDF(true);
     
     try {
+      const [year, month] = currentMonth.split('-');
+      const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+      const monthNameStr = monthNames[parseInt(month, 10) - 1];
+
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      tempDiv.style.backgroundColor = '#ffffff';
+      tempDiv.style.padding = '20px';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      tempDiv.style.color = '#000000';
+      
+      let html = `
+        <div style="background: #ffffff; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000000; padding-bottom: 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <div>
+                <h1 style="font-size: 24px; font-weight: bold; color: #000000; margin: 0 0 4px 0;">Foglio Presenze</h1>
+                ${userName ? `<div style="font-size: 16px; color: #000000;">Dipendente: <strong>${userName}</strong></div>` : ''}
+              </div>
+            </div>
+            <div style="font-size: 16px; font-weight: bold; color: #000000;">
+              ${monthNameStr} ${year}
+            </div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; border: 1px solid #000000;">
+            <thead>
+              <tr style="border-bottom: 2px solid #000000;">
+                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000; width: 100px;">Giorno</th>
+                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Mattino</th>
+                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Mattino</th>
+                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Entrata Pomeriggio</th>
+                <th style="padding: 8px; font-weight: bold; text-align: center; border-right: 1px solid #000000;">Uscita Pomeriggio</th>
+                <th style="padding: 8px; font-weight: bold; text-align: right;">Totale</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      let totalMonthMinutes = 0;
+
+      entries.forEach(entry => {
+        const dayTotal = calculateDayMinutes(entry);
+        totalMonthMinutes += dayTotal;
+        
+        const currentDayIndex = (firstDay + entry.day - 1) % 7;
+        const dayName = shortDays[currentDayIndex];
+        
+        html += `
+          <tr style="border-bottom: 1px solid #000000;">
+            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">
+              <strong style="display: inline-block; width: 20px; text-align: right; margin-right: 4px;">${entry.day}</strong>
+              <span style="font-size: 12px;">${dayName}</span>
+            </td>
+            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.amIn || ''}</td>
+            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.amOut || ''}</td>
+            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.pmIn || ''}</td>
+            <td style="padding: 8px; text-align: center; border-right: 1px solid #000000;">${entry.pmOut || ''}</td>
+            <td style="padding: 8px; text-align: right; font-weight: bold;">${formatMinutes(dayTotal)}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+          <div style="margin-top: 20px; text-align: right;">
+            <span style="font-size: 16px; margin-right: 12px;">Totale Mensile Lavorato:</span>
+            <span style="font-size: 20px; font-weight: bold;">${formatMinutes(totalMonthMinutes)}</span>
+          </div>
+        </div>
+      `;
+
+      tempDiv.innerHTML = html;
+      document.body.appendChild(tempDiv);
+      
       const opt = {
         margin:       10,
         filename:     `Foglio_Presenze_${currentMonth}.pdf`,
@@ -289,10 +368,12 @@ export default function App() {
       // @ts-ignore
       if (window.html2pdf) {
         // @ts-ignore
-        await window.html2pdf().set(opt).from(element).save();
+        await window.html2pdf().set(opt).from(tempDiv).save();
       } else {
         throw new Error("html2pdf library not loaded.");
       }
+      
+      document.body.removeChild(tempDiv);
     } catch (e) {
       console.error("Errore durante la generazione del PDF:", e);
       alert("Si è verificato un errore durante la generazione del PDF. Assicurati che la libreria sia caricata correttamente.");
