@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CalendarClock, Download, ArrowRight, X, Sun, Moon } from 'lucide-react';
+import { CalendarClock, Download, ArrowRight, X, Sun, Moon, LogIn, LogOut } from 'lucide-react';
+import { db, auth, googleProvider } from './lib/firebase';
+import { signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface DayEntry {
   day: number;
@@ -144,9 +147,38 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('timesheet-dark-mode') === 'true';
   });
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
   const [fillModeState, setFillModeState] = useState<{ day: number, field: keyof Omit<DayEntry, 'day'>, keyword: string } | null>(null);
   const fillModeRef = useRef<{ day: number, field: keyof Omit<DayEntry, 'day'>, keyword: string } | null>(null);
   const fieldsOrder: (keyof Omit<DayEntry, 'day'>)[] = ['amIn', 'amOut', 'pmIn', 'pmOut'];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      setIsAuthLoaded(true);
+      if (currentUser) {
+        try {
+          const userSettingsRef = doc(db, 'user_settings', currentUser.uid);
+          const userSettingsSnap = await getDoc(userSettingsRef);
+          if (userSettingsSnap.exists()) {
+            const data = userSettingsSnap.data();
+            if (data.userName) setUserName(data.userName);
+            if (data.isDarkMode !== undefined) setIsDarkMode(data.isDarkMode);
+          } else {
+            await setDoc(userSettingsRef, {
+              userName: localStorage.getItem('timesheet-user-name') || '',
+              isDarkMode: localStorage.getItem('timesheet-dark-mode') === 'true',
+              updatedAt: new Date()
+            });
+          }
+        } catch (e) {
+          console.error("Error loading user settings", e);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('timesheet-dark-mode', String(isDarkMode));
@@ -155,13 +187,21 @@ export default function App() {
     } else {
       document.documentElement.classList.remove('dark-mode');
     }
-  }, [isDarkMode]);
+    if (user && isAuthLoaded) {
+      setDoc(doc(db, 'user_settings', user.uid), { isDarkMode }, { merge: true }).catch(console.error);
+    }
+  }, [isDarkMode, user, isAuthLoaded]);
 
   useEffect(() => {
     localStorage.setItem('timesheet-user-name', userName);
-  }, [userName]);
+    if (user && isAuthLoaded) {
+      setDoc(doc(db, 'user_settings', user.uid), { userName }, { merge: true }).catch(console.error);
+    }
+  }, [userName, user, isAuthLoaded]);
 
   useEffect(() => {
+    if (!isAuthLoaded) return;
+    
     localStorage.setItem('timesheet-current-month', currentMonth);
     
     let daysInMonth = 31;
@@ -174,31 +214,78 @@ export default function App() {
       autoFirstDay = firstDate.getDay();
     }
 
-    const savedEntries = localStorage.getItem(`${STORAGE_KEY}-${currentMonth}`);
-    if (savedEntries) {
-      try {
-        setEntries(JSON.parse(savedEntries));
-      } catch (e) {
-        setEntries(generateDefaultEntries(daysInMonth));
-      }
-    } else {
-      setEntries(generateDefaultEntries(daysInMonth));
-    }
+    const loadData = async () => {
+      if (user) {
+        try {
+          const timesheetRef = doc(db, 'timesheets', `${user.uid}_${currentMonth}`);
+          const snap = await getDoc(timesheetRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            setEntries(data.entries || generateDefaultEntries(daysInMonth));
+            setFirstDay(data.firstDay !== undefined ? data.firstDay : autoFirstDay);
+          } else {
+            const savedEntries = localStorage.getItem(`${STORAGE_KEY}-${currentMonth}`);
+            const savedFirstDay = localStorage.getItem(`${STORAGE_KEY_FIRST_DAY}-${currentMonth}`);
+            const initialEntries = savedEntries ? JSON.parse(savedEntries) : generateDefaultEntries(daysInMonth);
+            const initialFirstDay = savedFirstDay ? parseInt(savedFirstDay, 10) : autoFirstDay;
+            
+            setEntries(initialEntries);
+            setFirstDay(initialFirstDay);
+            
+            await setDoc(timesheetRef, {
+              userId: user.uid,
+              month: currentMonth,
+              firstDay: initialFirstDay,
+              entries: initialEntries,
+              updatedAt: new Date()
+            });
+          }
+        } catch (e) {
+          console.error("Error loading timesheet", e);
+          setEntries(generateDefaultEntries(daysInMonth));
+          setFirstDay(autoFirstDay);
+        }
+      } else {
+        const savedEntries = localStorage.getItem(`${STORAGE_KEY}-${currentMonth}`);
+        if (savedEntries) {
+          try {
+            setEntries(JSON.parse(savedEntries));
+          } catch (e) {
+            setEntries(generateDefaultEntries(daysInMonth));
+          }
+        } else {
+          setEntries(generateDefaultEntries(daysInMonth));
+        }
 
-    const savedFirstDay = localStorage.getItem(`${STORAGE_KEY_FIRST_DAY}-${currentMonth}`);
-    if (savedFirstDay) {
-      setFirstDay(parseInt(savedFirstDay, 10));
-    } else {
-      setFirstDay(autoFirstDay);
-    }
-    setIsLoaded(true);
-  }, [currentMonth]);
+        const savedFirstDay = localStorage.getItem(`${STORAGE_KEY_FIRST_DAY}-${currentMonth}`);
+        if (savedFirstDay) {
+          setFirstDay(parseInt(savedFirstDay, 10));
+        } else {
+          setFirstDay(autoFirstDay);
+        }
+      }
+      setIsLoaded(true);
+    };
+
+    setIsLoaded(false);
+    loadData();
+  }, [currentMonth, user, isAuthLoaded]);
 
   useEffect(() => {
     if (isLoaded && entries.length > 0) {
       localStorage.setItem(`${STORAGE_KEY}-${currentMonth}`, JSON.stringify(entries));
+      if (user) {
+        const timesheetRef = doc(db, 'timesheets', `${user.uid}_${currentMonth}`);
+        setDoc(timesheetRef, {
+          userId: user.uid,
+          month: currentMonth,
+          firstDay: firstDay,
+          entries: entries,
+          updatedAt: new Date()
+        }, { merge: true }).catch(console.error);
+      }
     }
-  }, [entries, currentMonth, isLoaded]);
+  }, [entries, currentMonth, isLoaded, user, firstDay]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -349,6 +436,28 @@ export default function App() {
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
+            {user ? (
+              <div className="flex items-center gap-3 bg-white pl-3 pr-2 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                <div className="text-sm font-medium text-slate-700 hidden sm:block">
+                  {user.displayName || user.email}
+                </div>
+                <button
+                  onClick={() => signOut(auth)}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                  title="Disconnetti"
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => signInWithPopup(auth, googleProvider)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm sm:text-base"
+              >
+                <LogIn size={18} />
+                <span className="hidden sm:inline">Accedi per Sincronizzare</span>
+              </button>
+            )}
             <input 
               type="month"
               value={currentMonth}
