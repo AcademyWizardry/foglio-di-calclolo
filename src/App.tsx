@@ -61,6 +61,32 @@ function formatMinutes(minutes: number): string {
   return `${h}h ${m.toString().padStart(2, '0')}m`;
 }
 
+function formatTimeInputString(value: string): string {
+  let formatted = value.trim();
+  if (!formatted) return '';
+
+  formatted = formatted.replace(/[.,;]/g, ':');
+
+  if (/^\d{3,4}$/.test(formatted)) {
+    const len = formatted.length;
+    formatted = `${formatted.substring(0, len - 2)}:${formatted.substring(len - 2)}`;
+  }
+
+  if (/^\d{1,2}$/.test(formatted)) {
+    formatted = `${formatted.padStart(2, '0')}:00`;
+  } else {
+    const match = formatted.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (match) {
+      formatted = `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`;
+    }
+  }
+
+  if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formatted)) {
+    return formatted;
+  }
+  return formatted;
+}
+
 const InputTime = ({ value, onChange, onFocus, isFillTarget }: { value: string, onChange: (v: string) => void, onFocus: () => void, isFillTarget: boolean }) => {
   const [localValue, setLocalValue] = useState(value);
 
@@ -75,34 +101,9 @@ const InputTime = ({ value, onChange, onFocus, isFillTarget }: { value: string, 
   };
 
   const handleBlur = () => {
-    let formatted = localValue.trim();
-    if (!formatted) {
-      onChange('');
-      return;
-    }
-
-    formatted = formatted.replace(/[.,;]/g, ':');
-
-    if (/^\d{3,4}$/.test(formatted)) {
-      const len = formatted.length;
-      formatted = `${formatted.substring(0, len - 2)}:${formatted.substring(len - 2)}`;
-    }
-
-    if (/^\d{1,2}$/.test(formatted)) {
-      formatted = `${formatted.padStart(2, '0')}:00`;
-    } else {
-      const match = formatted.match(/^(\d{1,2}):(\d{1,2})$/);
-      if (match) {
-        formatted = `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`;
-      }
-    }
-
-    if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formatted)) {
-      setLocalValue(formatted);
-      onChange(formatted);
-    } else {
-      onChange(formatted);
-    }
+    const formatted = formatTimeInputString(localValue);
+    setLocalValue(formatted);
+    onChange(formatted);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -152,6 +153,13 @@ export default function App() {
   const [fillModeState, setFillModeState] = useState<{ day: number, field: keyof Omit<DayEntry, 'day'>, keyword: string } | null>(null);
   const fillModeRef = useRef<{ day: number, field: keyof Omit<DayEntry, 'day'>, keyword: string } | null>(null);
   const fieldsOrder: (keyof Omit<DayEntry, 'day'>)[] = ['amIn', 'amOut', 'pmIn', 'pmOut'];
+
+  // Default times states
+  const [defaultAmIn, setDefaultAmIn] = useState<string>('');
+  const [defaultPmIn, setDefaultPmIn] = useState<string>('');
+  const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
+  const [includeSaturday, setIncludeSaturday] = useState<boolean>(false);
+  const [includeSunday, setIncludeSunday] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -344,6 +352,24 @@ export default function App() {
     return currentIndex > startIndex;
   };
 
+  const applyDefaultTimes = () => {
+    setEntries(prev => prev.map(entry => {
+      const currentDayIndex = (firstDay + entry.day - 1) % 7;
+      const isSaturday = currentDayIndex === 6;
+      const isSunday = currentDayIndex === 0;
+
+      if (isSaturday && !includeSaturday) return entry;
+      if (isSunday && !includeSunday) return entry;
+
+      return {
+        ...entry,
+        amIn: defaultAmIn || entry.amIn,
+        pmIn: defaultPmIn || entry.pmIn
+      };
+    }));
+    setShowApplyModal(false);
+  };
+
   const handleNextMonth = () => {
     const [y, m] = currentMonth.split('-');
     let nextY = parseInt(y, 10);
@@ -416,7 +442,15 @@ export default function App() {
               <CalendarClock size={28} />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Foglio Presenze</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Foglio Presenze</h1>
+                <button
+                  onClick={() => setShowApplyModal(true)}
+                  className="sm:hidden text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded transition-colors"
+                >
+                  Orari Fissi
+                </button>
+              </div>
               <input 
                 type="text" 
                 placeholder="Inserisci il tuo nome..." 
@@ -466,6 +500,134 @@ export default function App() {
             />
           </div>
         </div>
+
+        {/* Default Times Settings */}
+        <div className="hidden sm:flex bg-white p-4 rounded-xl shadow-sm border border-slate-200 items-center gap-4 justify-between">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="text-sm font-medium text-slate-600">Orari Fissi (Entrata):</span>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-500">Mattina</label>
+              <input
+                type="text"
+                placeholder="08:00"
+                value={defaultAmIn}
+                onChange={(e) => setDefaultAmIn(e.target.value)}
+                onBlur={(e) => setDefaultAmIn(formatTimeInputString(e.target.value))}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                className="w-20 px-2 py-1 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 text-center"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-500">Pomeriggio</label>
+              <input
+                type="text"
+                placeholder="14:00"
+                value={defaultPmIn}
+                onChange={(e) => setDefaultPmIn(e.target.value)}
+                onBlur={(e) => setDefaultPmIn(formatTimeInputString(e.target.value))}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                className="w-20 px-2 py-1 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 text-center"
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => setShowApplyModal(true)}
+            disabled={!defaultAmIn && !defaultPmIn}
+            className="whitespace-nowrap px-4 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-sm font-medium rounded-lg transition-colors"
+          >
+            Applica al mese
+          </button>
+        </div>
+
+        {/* Modal for Default Times */}
+        {showApplyModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-bold text-slate-800">Applica Orari Fissi</h3>
+                <button onClick={() => setShowApplyModal(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Mobile Inputs (Hidden on Desktop) */}
+              <div className="sm:hidden space-y-3 mb-5">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-500">Entrata Mattina</label>
+                  <input
+                    type="text"
+                    placeholder="08:00"
+                    value={defaultAmIn}
+                    onChange={(e) => setDefaultAmIn(e.target.value)}
+                    onBlur={(e) => setDefaultAmIn(formatTimeInputString(e.target.value))}
+                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-center"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-500">Entrata Pomeriggio</label>
+                  <input
+                    type="text"
+                    placeholder="14:00"
+                    value={defaultPmIn}
+                    onChange={(e) => setDefaultPmIn(e.target.value)}
+                    onBlur={(e) => setDefaultPmIn(formatTimeInputString(e.target.value))}
+                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-center"
+                  />
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-600 mb-5">
+                <span className="hidden sm:inline">Vuoi applicare questi orari di entrata ({defaultAmIn || '-'} / {defaultPmIn || '-'}) anche al fine settimana?</span>
+                <span className="sm:hidden">Vuoi applicare gli orari anche al fine settimana?</span>
+              </p>
+              
+              <div className="space-y-3 mb-6">
+                <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors">
+                  <div className="relative flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={includeSaturday}
+                      onChange={(e) => setIncludeSaturday(e.target.checked)}
+                      className="w-5 h-5 border-2 border-slate-300 rounded cursor-pointer transition-colors checked:bg-blue-600 checked:border-blue-600 appearance-none"
+                    />
+                    {includeSaturday && <svg className="absolute w-3.5 h-3.5 text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Includi Sabato</span>
+                </label>
+                
+                <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-colors">
+                  <div className="relative flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={includeSunday}
+                      onChange={(e) => setIncludeSunday(e.target.checked)}
+                      className="w-5 h-5 border-2 border-slate-300 rounded cursor-pointer transition-colors checked:bg-blue-600 checked:border-blue-600 appearance-none"
+                    />
+                    {includeSunday && <svg className="absolute w-3.5 h-3.5 text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Includi Domenica</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setShowApplyModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annulla
+                </button>
+                <button 
+                  onClick={applyDefaultTimes}
+                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                >
+                  Conferma e Applica
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Table Container */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
