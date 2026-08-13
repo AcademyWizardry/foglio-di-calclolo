@@ -27,6 +27,27 @@ const generateDefaultEntries = (daysInMonth: number = 31): DayEntry[] => {
   }));
 };
 
+const adjustEntriesToMonthLength = (entries: DayEntry[], daysInMonth: number): DayEntry[] => {
+  if (!entries || entries.length === 0) return generateDefaultEntries(daysInMonth);
+  if (entries.length === daysInMonth) return entries;
+  
+  if (entries.length > daysInMonth) {
+    return entries.slice(0, daysInMonth);
+  }
+  
+  const newEntries = [...entries];
+  for (let i = entries.length; i < daysInMonth; i++) {
+    newEntries.push({
+      day: i + 1,
+      amIn: '',
+      amOut: '',
+      pmIn: '',
+      pmOut: '',
+    });
+  }
+  return newEntries;
+};
+
 function timeToMinutes(timeStr: string): number {
   if (!timeStr) return 0;
   if (!timeStr.includes(':')) return 0;
@@ -216,8 +237,24 @@ export default function App() {
     let autoFirstDay = 1;
     if (currentMonth) {
       const [y, m] = currentMonth.split('-');
-      const date = new Date(parseInt(y), parseInt(m), 0);
-      daysInMonth = date.getDate();
+      
+      const monthDaysMap: Record<string, number> = {
+        '01': 31,
+        '02': 28,
+        '03': 31,
+        '04': 30,
+        '05': 31,
+        '06': 30,
+        '07': 31,
+        '08': 31,
+        '09': 30,
+        '10': 31,
+        '11': 30,
+        '12': 31
+      };
+      
+      daysInMonth = monthDaysMap[m] || 31;
+      
       const firstDate = new Date(parseInt(y), parseInt(m) - 1, 1);
       autoFirstDay = firstDate.getDay();
     }
@@ -229,12 +266,13 @@ export default function App() {
           const snap = await getDoc(timesheetRef);
           if (snap.exists()) {
             const data = snap.data();
-            setEntries(data.entries || generateDefaultEntries(daysInMonth));
+            const rawEntries = data.entries || [];
+            setEntries(adjustEntriesToMonthLength(rawEntries, daysInMonth));
             setFirstDay(data.firstDay !== undefined ? data.firstDay : autoFirstDay);
           } else {
             const savedEntries = localStorage.getItem(`${STORAGE_KEY}-${currentMonth}`);
             const savedFirstDay = localStorage.getItem(`${STORAGE_KEY_FIRST_DAY}-${currentMonth}`);
-            const initialEntries = savedEntries ? JSON.parse(savedEntries) : generateDefaultEntries(daysInMonth);
+            const initialEntries = savedEntries ? adjustEntriesToMonthLength(JSON.parse(savedEntries), daysInMonth) : generateDefaultEntries(daysInMonth);
             const initialFirstDay = savedFirstDay ? parseInt(savedFirstDay, 10) : autoFirstDay;
             
             setEntries(initialEntries);
@@ -257,7 +295,7 @@ export default function App() {
         const savedEntries = localStorage.getItem(`${STORAGE_KEY}-${currentMonth}`);
         if (savedEntries) {
           try {
-            setEntries(JSON.parse(savedEntries));
+            setEntries(adjustEntriesToMonthLength(JSON.parse(savedEntries), daysInMonth));
           } catch (e) {
             setEntries(generateDefaultEntries(daysInMonth));
           }
