@@ -1,0 +1,58 @@
+{
+  "database": {
+    "collections": {
+      "user_settings": {
+        "description": "User preferences and general settings",
+        "document_id": "userId (uid from Firebase Auth)",
+        "fields": {
+          "userName": {
+            "type": "string",
+            "description": "The user's display name for the timesheet"
+          },
+          "isDarkMode": {
+            "type": "boolean",
+            "description": "User's dark mode preference"
+          },
+          "updatedAt": {
+            "type": "timestamp",
+            "description": "Last update time"
+          }
+        },
+        "security_rules": {
+          "read": "request.auth != null && request.auth.uid == userId",
+          "write": "request.auth != null && request.auth.uid == userId"
+        }
+      },
+      "timesheets": {
+        "description": "Monthly timesheet entries for a user",
+        "document_id": "Composite ID: {userId}_{month} (e.g., abc123_2026-08)",
+        "fields": {
+          "userId": {
+            "type": "string",
+            "description": "Owner ID matching Auth UID"
+          },
+          "month": {
+            "type": "string",
+            "description": "The month key, e.g., '2026-08'"
+          },
+          "firstDay": {
+            "type": "number",
+            "description": "First day of the month offset"
+          },
+          "entries": {
+            "type": "array",
+            "description": "Array of daily entry objects containing amIn, amOut, pmIn, pmOut"
+          },
+          "updatedAt": {
+            "type": "timestamp",
+            "description": "Last update time"
+          }
+        },
+        "security_rules": {
+          "read": "request.auth != null && request.auth.uid == resource.data.userId",
+          "write": "request.auth != null && request.auth.uid == request.resource.data.userId"
+        }
+      }
+    }
+  }
+}
