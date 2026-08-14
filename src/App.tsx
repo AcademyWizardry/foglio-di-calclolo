@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CalendarClock, Download, ArrowRight, X, Sun, Moon, LogIn, LogOut } from 'lucide-react';
+import { CalendarClock, Download, ArrowRight, X, Sun, Moon, LogIn, LogOut, Banknote } from 'lucide-react';
 import { db, auth, googleProvider } from './lib/firebase';
+import Stipendio from './Stipendio';
 import { signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -181,6 +182,20 @@ export default function App() {
   const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
   const [includeSaturday, setIncludeSaturday] = useState<boolean>(false);
   const [includeSunday, setIncludeSunday] = useState<boolean>(false);
+  const [currentView, setCurrentView] = useState<'presenze' | 'stipendio'>('presenze');
+  const [highlightTrattenuta, setHighlightTrattenuta] = useState<string | null>(null);
+  const [trattenuteMensili, setTrattenuteMensili] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (currentView === 'presenze') {
+      const savedTrattenute = localStorage.getItem(`timesheet-trattenute-${currentMonth}`);
+      if (savedTrattenute) {
+        setTrattenuteMensili(JSON.parse(savedTrattenute));
+      } else {
+        setTrattenuteMensili([]);
+      }
+    }
+  }, [currentView, currentMonth]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -469,6 +484,10 @@ export default function App() {
 
   const totalMonthlyMinutes = entries.reduce((acc, entry) => acc + calculateDayMinutes(entry), 0);
 
+  if (currentView === 'stipendio') {
+    return <Stipendio onClose={() => { setCurrentView('presenze'); setHighlightTrattenuta(null); }} highlightId={highlightTrattenuta} currentMonth={currentMonth} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4 sm:px-6 lg:px-8 font-sans text-slate-900" id="timesheet-container">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -484,9 +503,16 @@ export default function App() {
                 <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Foglio Presenze</h1>
                 <button
                   onClick={() => setShowApplyModal(true)}
-                  className="sm:hidden text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded transition-colors"
+                  className="sm:hidden text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-sm"
                 >
                   Orari Fissi
+                </button>
+                <button
+                  onClick={() => setCurrentView('stipendio')}
+                  className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-sm flex items-center gap-1.5"
+                >
+                  <Banknote size={14} className="hidden sm:block" />
+                  Stipendio
                 </button>
               </div>
               <input 
@@ -502,7 +528,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="p-2 bg-slate-800 border border-slate-700 rounded-lg text-white hover:bg-slate-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               aria-label="Toggle dark mode"
               title="Attiva/Disattiva Modalità Scura"
             >
@@ -524,7 +550,7 @@ export default function App() {
             ) : (
               <button
                 onClick={() => signInWithPopup(auth, googleProvider)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm sm:text-base"
+                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors shadow-sm text-sm sm:text-base"
               >
                 <LogIn size={18} />
                 <span className="hidden sm:inline">Accedi per Sincronizzare</span>
@@ -571,7 +597,7 @@ export default function App() {
           <button
             onClick={() => setShowApplyModal(true)}
             disabled={!defaultAmIn && !defaultPmIn}
-            className="whitespace-nowrap px-4 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-sm font-medium rounded-lg transition-colors"
+            className="whitespace-nowrap px-4 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
           >
             Applica al mese
           </button>
@@ -583,7 +609,7 @@ export default function App() {
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in duration-200">
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-bold text-slate-800">Applica Orari Fissi</h3>
-                <button onClick={() => setShowApplyModal(false)} className="text-slate-400 hover:text-slate-600">
+                <button onClick={() => setShowApplyModal(false)} className="p-1.5 bg-slate-800 text-white hover:bg-slate-700 rounded-lg transition-colors">
                   <X size={20} />
                 </button>
               </div>
@@ -652,13 +678,13 @@ export default function App() {
               <div className="flex gap-3 justify-end">
                 <button 
                   onClick={() => setShowApplyModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   Annulla
                 </button>
                 <button 
                   onClick={applyDefaultTimes}
-                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium bg-slate-800 text-white hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   Conferma e Applica
                 </button>
@@ -686,25 +712,49 @@ export default function App() {
                      const dayTotal = calculateDayMinutes(entry);
                      const currentDayIndex = (firstDay + entry.day - 1) % 7;
                      const isSunday = currentDayIndex === 0;
+                     
+                     // Find trattenute for this day
+                     const rowDate = `${currentMonth}-${entry.day.toString().padStart(2, '0')}`;
+                     const dayTrattenute = trattenuteMensili.filter(t => t.data === rowDate);
+
                      return (
                        <tr key={entry.day} className={`transition-colors ${isSunday ? 'bg-rose-50/20 hover:bg-rose-50/40' : 'hover:bg-blue-50/30 even:bg-slate-50/50'}`}>
                          <td className="py-2.5 px-4 text-center">
-                           <div className="flex items-center justify-start gap-2 w-[72px] mx-auto">
-                             <span className={`font-semibold text-right w-5 ${isSunday ? 'text-rose-600' : 'text-slate-500'}`}>{entry.day}</span>
-                             {entry.day === 1 ? (
-                               <select
-                                 value={firstDay}
-                                 onChange={(e) => setFirstDay(Number(e.target.value))}
-                                 className={`text-xs px-1 py-1 rounded border bg-white focus:outline-none focus:ring-1 cursor-pointer w-[44px] ${isSunday ? 'text-rose-600 border-rose-200 hover:border-rose-300 focus:ring-rose-500' : 'border-slate-200 text-slate-600 hover:border-slate-300 focus:ring-blue-500'}`}
-                               >
-                                 {shortDays.map((d, i) => (
-                                   <option key={i} value={i}>{d}</option>
+                           <div className="flex flex-col items-center justify-center gap-1 w-[72px] mx-auto">
+                             <div className="flex items-center justify-start gap-2 w-full">
+                               <span className={`font-semibold text-right w-5 ${isSunday ? 'text-rose-600' : 'text-slate-500'}`}>{entry.day}</span>
+                               {entry.day === 1 ? (
+                                 <select
+                                   value={firstDay}
+                                   onChange={(e) => setFirstDay(Number(e.target.value))}
+                                   className={`text-xs px-1 py-1 rounded border bg-white focus:outline-none focus:ring-1 cursor-pointer w-[44px] ${isSunday ? 'text-rose-600 border-rose-200 hover:border-rose-300 focus:ring-rose-500' : 'border-slate-200 text-slate-600 hover:border-slate-300 focus:ring-blue-500'}`}
+                                 >
+                                   {shortDays.map((d, i) => (
+                                     <option key={i} value={i}>{d}</option>
+                                   ))}
+                                 </select>
+                               ) : (
+                                 <span className={`text-xs font-medium w-[44px] text-left px-1 ${isSunday ? 'text-rose-500' : 'text-slate-400'}`}>
+                                   {shortDays[currentDayIndex]}
+                                 </span>
+                               )}
+                             </div>
+                             {dayTrattenute.length > 0 && (
+                               <div className="flex flex-wrap gap-1 w-full justify-center">
+                                 {dayTrattenute.map(t => (
+                                   <button 
+                                     key={t.id} 
+                                     title={`${t.descrizione}: ${t.importo}€`} 
+                                     onClick={() => {
+                                       setHighlightTrattenuta(t.id);
+                                       setCurrentView('stipendio');
+                                     }}
+                                     className="bg-slate-800 hover:bg-slate-700 cursor-pointer text-white text-[9px] uppercase font-bold px-1 rounded-sm transition-colors shadow-sm"
+                                   >
+                                     {t.descrizione.substring(0, 2)}
+                                   </button>
                                  ))}
-                               </select>
-                             ) : (
-                               <span className={`text-xs font-medium w-[44px] text-left px-1 ${isSunday ? 'text-rose-500' : 'text-slate-400'}`}>
-                                 {shortDays[currentDayIndex]}
-                               </span>
+                               </div>
                              )}
                            </div>
                          </td>
@@ -780,7 +830,7 @@ export default function App() {
             <div className="flex gap-4 items-center bg-white p-2 rounded-xl shadow-sm border border-slate-200">
               <button 
                 onClick={handleDownloadCSV}
-                className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 font-medium rounded-lg transition-colors flex items-center gap-2"
               >
                 <Download size={18} />
                 Scarica Excel (CSV)
@@ -794,7 +844,7 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setShowEndMonthActions(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg transition-colors"
               >
                 <X size={18} />
               </button>
