@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Banknote } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Banknote, Pencil } from 'lucide-react';
 
 interface Trattenuta {
   id: string;
@@ -17,7 +17,8 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
     const saved = localStorage.getItem(`timesheet-trattenute-${currentMonth}`);
     return saved ? JSON.parse(saved) : [];
   });
-  const [nuovaDescrizione, setNuovaDescrizione] = useState('Acconto');
+  const [nuovaDescrizione, setNuovaDescrizione] = useState('Note personali');
+  const [dettaglioNota, setDettaglioNota] = useState('');
   const [nuovoImporto, setNuovoImporto] = useState<number | ''>('');
   const [nuovaData, setNuovaData] = useState(() => {
     const today = new Date();
@@ -28,6 +29,7 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
   });
 
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [itemToEdit, setItemToEdit] = useState<{id: string, descrizione: string, importo: number | '', data: string, dettaglio?: string} | null>(null);
 
   // Highlight scroll
   useEffect(() => {
@@ -52,14 +54,16 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
   }, [stipendioTotale, trattenute, currentMonth]);
 
   const aggiungiTrattenuta = () => {
-    if (nuovaDescrizione && nuovoImporto !== '' && nuovaData) {
+    const descFinale = nuovaDescrizione === 'Note personali' ? (dettaglioNota.trim() || 'Note personali') : nuovaDescrizione;
+    if (nuovaDescrizione && nuovoImporto !== '' && nuovaData && (nuovaDescrizione !== 'Note personali' || dettaglioNota.trim() !== '')) {
       setTrattenute([...trattenute, {
         id: crypto.randomUUID(),
-        descrizione: nuovaDescrizione,
+        descrizione: descFinale,
         importo: Number(nuovoImporto),
         data: nuovaData
       }]);
       setNuovoImporto('');
+      setDettaglioNota('');
     }
   };
 
@@ -78,10 +82,39 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
     setItemToDelete(null);
   };
 
+  const apriModifica = (t: Trattenuta) => {
+    const isStandard = vociDisponibili.includes(t.descrizione);
+    setItemToEdit({ 
+      id: t.id, 
+      descrizione: isStandard ? t.descrizione : 'Note personali', 
+      importo: t.importo, 
+      data: t.data,
+      dettaglio: isStandard ? '' : t.descrizione
+    });
+  };
+
+  const salvaModifica = () => {
+    if (itemToEdit && itemToEdit.descrizione && itemToEdit.importo !== '' && itemToEdit.data) {
+      const descFinale = itemToEdit.descrizione === 'Note personali' ? (itemToEdit.dettaglio?.trim() || 'Note personali') : itemToEdit.descrizione;
+      
+      if (itemToEdit.descrizione === 'Note personali' && !itemToEdit.dettaglio?.trim()) {
+        return;
+      }
+
+      setTrattenute(trattenute.map(t => 
+        t.id === itemToEdit.id 
+          ? { ...t, descrizione: descFinale, importo: Number(itemToEdit.importo), data: itemToEdit.data } 
+          : t
+      ));
+      setItemToEdit(null);
+    }
+  };
+
   const totaleTrattenute = trattenute.reduce((acc, t) => acc + t.importo, 0);
   const netto = (Number(stipendioTotale) || 0) - totaleTrattenute;
 
   const vociDisponibili = [
+    "Note personali",
     "Acconto",
     "Prestito",
     "Mensa",
@@ -89,8 +122,7 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
     "Trattenuta Sindacale",
     "Danni/Multe",
     "Assicurazione",
-    "Anticipo TFR",
-    "Altro"
+    "Anticipo TFR"
   ];
 
   return (
@@ -133,13 +165,26 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
             <div className="flex-1 w-full space-y-1">
               <select
                 value={nuovaDescrizione}
-                onChange={(e) => setNuovaDescrizione(e.target.value)}
+                onChange={(e) => {
+                  setNuovaDescrizione(e.target.value);
+                  if (e.target.value !== 'Note personali') setDettaglioNota('');
+                }}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white"
               >
                 {vociDisponibili.map(voce => (
                   <option key={voce} value={voce}>{voce}</option>
                 ))}
               </select>
+              {nuovaDescrizione === 'Note personali' && (
+                <input
+                  type="text"
+                  placeholder="Es: Spesa imprevista..."
+                  value={dettaglioNota}
+                  onChange={(e) => setDettaglioNota(e.target.value)}
+                  className="w-full mt-2 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  autoFocus
+                />
+              )}
             </div>
             <div className="w-full sm:w-40 space-y-1">
               <input
@@ -160,8 +205,8 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
             </div>
             <button
               onClick={aggiungiTrattenuta}
-              disabled={!nuovaDescrizione || nuovoImporto === '' || !nuovaData}
-              className="w-full sm:w-auto p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors disabled:opacity-50 flex justify-center shadow-sm"
+              disabled={!nuovaDescrizione || nuovoImporto === '' || !nuovaData || (nuovaDescrizione === 'Note personali' && !dettaglioNota.trim())}
+              className="w-full sm:w-auto p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors disabled:opacity-50 flex justify-center shadow-sm h-fit"
             >
               <Plus size={20} />
             </button>
@@ -181,6 +226,13 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
                   </div>
                   <div className="flex items-center gap-4 ml-auto">
                     <span className={`text-sm ${highlightId === t.id ? 'text-black font-extrabold text-base' : 'text-rose-600 font-bold'}`}>- {t.importo} €</span>
+                    <button 
+                      onClick={() => apriModifica(t)}
+                      className="flex items-center gap-1 p-1.5 px-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg transition-colors shadow-sm text-xs font-medium border border-slate-200"
+                    >
+                      <Pencil size={14} />
+                      Modifica
+                    </button>
                     <button 
                       onClick={() => rimuoviTrattenuta(t.id)}
                       className="p-1.5 bg-slate-800 text-white hover:bg-rose-600 rounded-lg transition-colors shadow-sm"
@@ -226,6 +278,74 @@ export default function Stipendio({ onClose, highlightId, currentMonth }: { onCl
                   className="px-4 py-2 text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 rounded-lg transition-colors shadow-sm"
                 >
                   Sì, Elimina
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal di Modifica */}
+        {itemToEdit && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in duration-200">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">Modifica Voce</h3>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Voce</label>
+                  <select
+                    value={itemToEdit.descrizione}
+                    onChange={(e) => {
+                      const newDesc = e.target.value;
+                      setItemToEdit({...itemToEdit, descrizione: newDesc, dettaglio: newDesc === 'Note personali' ? '' : itemToEdit.dettaglio});
+                    }}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white"
+                  >
+                    {vociDisponibili.map(voce => (
+                      <option key={voce} value={voce}>{voce}</option>
+                    ))}
+                  </select>
+                  {itemToEdit.descrizione === 'Note personali' && (
+                    <input
+                      type="text"
+                      placeholder="Es: Spesa imprevista..."
+                      value={itemToEdit.dettaglio || ''}
+                      onChange={(e) => setItemToEdit({...itemToEdit, dettaglio: e.target.value})}
+                      className="w-full mt-2 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Data</label>
+                  <input
+                    type="date"
+                    value={itemToEdit.data}
+                    onChange={(e) => setItemToEdit({...itemToEdit, data: e.target.value})}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Importo (€)</label>
+                  <input
+                    type="number"
+                    value={itemToEdit.importo}
+                    onChange={(e) => setItemToEdit({...itemToEdit, importo: e.target.value === '' ? '' : Number(e.target.value)})}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => setItemToEdit(null)}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                  Annulla
+                </button>
+                <button 
+                  onClick={salvaModifica}
+                  disabled={!itemToEdit.descrizione || itemToEdit.importo === '' || !itemToEdit.data || (itemToEdit.descrizione === 'Note personali' && !itemToEdit.dettaglio?.trim())}
+                  className="px-4 py-2 text-sm font-medium bg-slate-800 text-white hover:bg-slate-700 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                >
+                  Salva Modifiche
                 </button>
               </div>
             </div>
