@@ -751,7 +751,7 @@ export default function App() {
                                      }}
                                      className="bg-slate-800 hover:bg-slate-700 cursor-pointer text-white text-[9px] uppercase font-bold px-1 rounded-sm transition-colors shadow-sm"
                                    >
-                                     {t.descrizione.substring(0, 2)}
+                                     {["Acconto", "Prestito", "Mensa", "Rimborso Spese", "Trattenuta Sindacale", "Danni/Multe", "Assicurazione", "Anticipo TFR"].includes(t.descrizione) ? t.descrizione.substring(0, 2) : "NP"}
                                    </button>
                                  ))}
                                </div>
